@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# https://github.com/coalfire/make-centos-bootstick
 # Insert a usb stick (at least 1G) into a CentOS 7 machine.
 # yum -y install syslinux dosfstools
 # Run this script as root, passing the /dev/sdX you are going to use
@@ -41,11 +42,17 @@ die() {
     exit $status
 }
 
+check_prereqs() {
+    which mkfs.vfat || die 4 "mkfs.vfat not found!  Please install dosfstools"
+    which syslinux || die 5 "syslinux not found! Please install syslinux"
+}
+
 get_current_iso_name() {
     iso="$(curl "$mirror/$arch/$readme" | grep "CentOS-7-$arch-$install_type")"
 }
 
 fetch_iso() {
+    echo "DEBUG-inside fetch_iso"
     curl -O $mirror/$arch/$iso
     curl -O $mirror/$arch/$sumfile
     grep "$iso" $sumfile | sha256sum -c - || die 8 "$iso download incorrect"
@@ -111,6 +118,10 @@ mount_parts() {
 
 make_boot() {
     cp -v DVD/isolinux/* BOOT/
+    cp -av DVD/images BOOT/
+    cp -av DVD/EFI BOOT/
+    sed -i '/^search/,/^$/s#-l.*#-l BOOT#' BOOT/EFI/BOOT/grub.cfg # May not be necessary
+    echo "BOOTX64" > BOOT/EFI/BOOT/startup.nsh # May not be necessary
     mv -v BOOT/isolinux.cfg BOOT/syslinux.cfg
 
     if [ -n "$syslinux" ]; then
@@ -133,22 +144,32 @@ clean_up() {
     umount ${dev}1
     umount ${dev}2
     umount $iso
+    rm $iso
 }
 
 edit_syslinux() {
     if [ -n "$ksremote" ]; then
         sed -i \
-        '/label linux/,/^$/s#LABEL=.* quiet#LABEL=DATA:/ '"$ks"'#'
+        '/label linux/,/^$/s#LABEL=.* quiet#LABEL=DATA:/ '"$ks"'#' \
         BOOT/syslinux.cfg
+	sed -i \
+	's#LABEL=.* quiet#LABEL=DATA:/ '"$ks"'#' \
+	BOOT/EFI/BOOT/grub.cfg
     elif [ -n "$ks" ]; then
         sed -i \
         '/label linux/,/^$/s#LABEL=.* quiet#LABEL=DATA:/ ks=hd:LABEL=BOOT:/ks.cfg#' \
         BOOT/syslinux.cfg
-        mv -v $ks BOOT/ || die 16 "Couldn't move $ks to BOOT/"
+	sed -i \
+	's#LABEL=.* quiet#LABEL=DATA:/ ks=hd:LABEL=BOOT:/ks.cfg#' \
+	BOOT/EFI/BOOT/grub.cfg
+        mv -v $ks BOOT/ks.cfg || die 16 "Couldn't move $ks to BOOT/ks.cfg"
     else
         sed -i \
         '/label linux/,/^$/s#LABEL=.* quiet#LABEL=DATA:/#' \
         BOOT/syslinux.cfg
+	sed -i \
+	's#LABEL=.* quiet#LABEL=DATA:/#' \
+	BOOT/EFI/BOOT/grub.cfg
     fi
 
     if [ -n "$splash" ]; then
@@ -169,6 +190,12 @@ while [ $# -gt 0 ]; do
         syslinux=$2
         cp $syslinux $tmp_dir/
         syslinux=$(basename $syslinux)
+        shift 2
+        ;;
+      -i)
+        iso=$2
+        ln -s $(readlink -f $iso) $tmp_dir
+        iso=$(basename $iso)
         shift 2
         ;;
       -k)
@@ -210,9 +237,11 @@ test $# -eq 1 || die 1 "$usage"
 dev=$1
 
 cd $tmp_dir || die 2 "Can't cd to $tmp_dir"
-get_current_iso_name
+test -f $iso || get_current_iso_name
 test -f $iso || fetch_iso
+#test -f $iso || die 3 "iso not found - \$iso = $iso"
 
+check_prereqs
 require_unmounted
 partition
 format_partitions
