@@ -67,7 +67,7 @@ parted --script $dev \
   mklabel msdos \
   mkpart primary fat32 1MiB 250MiB \
   set 1 boot on \
-  mkpart primary ext4 250MiB -1
+  mkpart primary ext4 250MiB 100%
 }
 
 format_partitions() {
