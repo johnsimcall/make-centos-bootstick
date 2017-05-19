@@ -64,7 +64,7 @@ require_unmounted() {
 partition() {
 wipefs --all --force $dev
 parted --script $dev \
-  mklabel gpt \
+  mklabel msdos \
   mkpart primary fat32 1MiB 250MiB \
   set 1 boot on \
   mkpart primary ext4 250MiB -1
