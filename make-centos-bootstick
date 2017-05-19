@@ -43,7 +43,7 @@ die() {
 }
 
 require_tools() {
-    which mkfs.vfat || die 4 "mkfs.vfat not found!  Please install dosfstools"
+    which mkfs.fat || die 4 "mkfs.fat not found!  Please install dosfstools"
     which syslinux || die 5 "syslinux not found! Please install syslinux"
 }
 
@@ -62,43 +62,17 @@ require_unmounted() {
 }
 
 partition() {
-    # This is dirty, but...
-    # d delete four partitions
-    # n new partition, accepting defaults for type, number, first sector
-    # +250M set size
-    # t change type to:
-    # c W95 FAT32 (LBA)
-    # a make bootable
-    # n new partition, accepting defaults for type, number, first sector, size
-    # w write changes to disk
-    echo 'd
-
-d
-
-d
-
-d
-
-n
-
-
-
-+250M
-t
-c
-a
-n
-
-
-
-
-w
-' | fdisk $dev
+wipefs --all --force $dev
+parted --script $dev \
+  mklabel gpt \
+  mkpart primary fat32 1MiB 250MiB \
+  set 1 boot on \
+  mkpart primary ext4 250MiB -1
 }
 
 format_partitions() {
-    mkfs -t vfat -n "BOOT" ${dev}1
-    mkfs -L "DATA" ${dev}2
+    mkfs.fat -n "BOOT" ${dev}1
+    mkfs.ext4 -L "DATA" ${dev}2
 }
 
 write_mbr() {
