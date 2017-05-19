@@ -42,7 +42,7 @@ die() {
     exit $status
 }
 
-check_prereqs() {
+require_tools() {
     which mkfs.vfat || die 4 "mkfs.vfat not found!  Please install dosfstools"
     which syslinux || die 5 "syslinux not found! Please install syslinux"
 }
@@ -119,8 +119,8 @@ make_boot() {
     cp -v DVD/isolinux/* BOOT/
     cp -av DVD/images BOOT/
     cp -av DVD/EFI BOOT/
-    sed -i '/^search/,/^$/s#-l.*#-l BOOT#' BOOT/EFI/BOOT/grub.cfg # May not be necessary
-    echo "BOOTX64" > BOOT/EFI/BOOT/startup.nsh # May not be necessary
+    sed -i '/^search/,/^$/s#-l.*#-l BOOT#' BOOT/EFI/BOOT/grub.cfg
+    echo "BOOTX64" > BOOT/EFI/BOOT/startup.nsh
     mv -v BOOT/isolinux.cfg BOOT/syslinux.cfg
 
     if [ -n "$syslinux" ]; then
@@ -238,9 +238,8 @@ dev=$1
 cd $tmp_dir || die 2 "Can't cd to $tmp_dir"
 test -f $iso || get_current_iso_name
 test -f $iso || fetch_iso
-#test -f $iso || die 3 "iso not found - \$iso = $iso"
 
-check_prereqs
+require_tools
 require_unmounted
 partition
 format_partitions
