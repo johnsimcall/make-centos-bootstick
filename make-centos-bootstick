@@ -1,6 +1,8 @@
 #!/bin/sh
 
-# https://github.com/coalfire/make-centos-bootstick
+# Original - https://github.com/coalfire/make-centos-bootstick
+# Alternative - https://github.com/RedHatGov/ssg-el7-kickstart/blob/master/createiso.sh
+#
 # Insert a usb stick (at least 1G) into a CentOS 7 machine.
 # yum -y install syslinux dosfstools
 # Run this script as root, passing the /dev/sdX you are going to use
